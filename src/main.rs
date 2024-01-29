@@ -1,5 +1,5 @@
-use std::env;
 use clap::{Arg, ArgAction, Command};
+use std::env;
 
 fn main() {
     let matches = Command::new("disallow_file_extensions")
@@ -11,16 +11,24 @@ fn main() {
                 .short('e')
                 .long("extensions")
                 .value_name("EXTENSIONS")
-                .help("Comma separated list of file extensions")
+                .help("Comma separated list of file extensions"),
         )
         .arg(
             Arg::new("filenames")
                 .help("Changed files")
                 .required(true)
                 .action(ArgAction::Append)
-                .help("Filenames to check")
+                .help("Filenames to check"),
         )
-
+        .arg(
+            Arg::new("ignore")
+                .short('i')
+                .long("ignore")
+                .help("Files to ignore")
+                .required(false)
+                .action(ArgAction::Append)
+                .help("Comma separated list of files to ignore"),
+        )
         .get_matches();
 
     let banned_extensions = matches
@@ -28,15 +36,24 @@ fn main() {
         .unwrap_or_default()
         .collect::<Vec<_>>();
 
+    let ignored_files = matches
+        .get_many::<String>("ignore")
+        .unwrap_or_default()
+        .collect::<Vec<_>>();
+
     let exit_code: bool = matches
         .get_many::<String>("filenames")
         .unwrap_or_default()
         .any(|filename| {
-
-            let extension = ".".to_string() + &std::path::Path::new(filename)
-                .extension()
-                .map(|ext| ext.to_string_lossy().to_string())
-                .unwrap_or_default();
+            // Check if filename is in the ignored_files list
+            if ignored_files.contains(&filename) {
+                return false;
+            }
+            let extension = ".".to_string()
+                + &std::path::Path::new(filename)
+                    .extension()
+                    .map(|ext| ext.to_string_lossy().to_string())
+                    .unwrap_or_default();
 
             if banned_extensions.contains(&&extension) {
                 println!("{} uses a disallowed file extension", filename);
